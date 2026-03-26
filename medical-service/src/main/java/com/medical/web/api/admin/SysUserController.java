@@ -49,12 +49,48 @@ public class SysUserController {
     public ResultVo<PageResult<UserListVo>> page(
             @RequestParam(value = "current", defaultValue = "1") Long current,
             @RequestParam(value = "size", defaultValue = "10") Long size,
-            @RequestParam(value = "keyword", required = false) String keyword) {
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "status", required = false) Integer status,
+            @RequestParam(value = "roleCode", required = false) String roleCode) {
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(SysUser::getUsername, keyword)
                     .or().like(SysUser::getName, keyword)
                     .or().like(SysUser::getMobilePhone, keyword));
+        }
+        if (status != null) {
+            wrapper.eq(SysUser::getStatus, status);
+        }
+        if (StringUtils.hasText(roleCode)) {
+            SysRole role = sysRoleMapper.selectOne(
+                    new LambdaQueryWrapper<SysRole>()
+                            .eq(SysRole::getRoleCode, roleCode)
+                            .eq(SysRole::getStatus, 1)
+            );
+            if (role == null) {
+                PageResult<UserListVo> result = new PageResult<>();
+                result.setCurrentPage(current);
+                result.setPageSize(size);
+                result.setTotal(0L);
+                result.setList(Collections.emptyList());
+                return ResultVo.ok(result);
+            }
+            List<Long> userIds = sysUserRoleMapper.selectList(
+                            new LambdaQueryWrapper<SysUserRole>()
+                                    .eq(SysUserRole::getRoleId, role.getRoleId())
+                    )
+                    .stream()
+                    .map(SysUserRole::getUserId)
+                    .collect(Collectors.toList());
+            if (userIds.isEmpty()) {
+                PageResult<UserListVo> result = new PageResult<>();
+                result.setCurrentPage(current);
+                result.setPageSize(size);
+                result.setTotal(0L);
+                result.setList(Collections.emptyList());
+                return ResultVo.ok(result);
+            }
+            wrapper.in(SysUser::getUserId, userIds);
         }
         wrapper.orderByDesc(SysUser::getCreatedTime);
         Page<SysUser> page = sysUserMapper.selectPage(new Page<>(current, size), wrapper);

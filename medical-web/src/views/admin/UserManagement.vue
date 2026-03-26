@@ -29,6 +29,36 @@
             <i class="fa-solid fa-search"></i>
             搜索
           </el-button>
+
+          <el-select
+            v-model="statusFilter"
+            placeholder="状态"
+            clearable
+            size="large"
+            class="filter-select"
+            style="width: 120px"
+            @change="loadData"
+          >
+            <el-option :value="1" label="启用" />
+            <el-option :value="0" label="禁用" />
+          </el-select>
+
+          <el-select
+            v-model="roleCodeFilter"
+            placeholder="角色"
+            clearable
+            size="large"
+            class="filter-select"
+            style="width: 220px"
+            @change="loadData"
+          >
+            <el-option
+              v-for="r in roleOptions"
+              :key="r.roleId"
+              :label="`${r.roleName} (${r.roleCode})`"
+              :value="r.roleCode"
+            />
+          </el-select>
         </div>
         <el-button class="add-user-btn" @click="openCreateDialog">
           <i class="fa-solid fa-user-plus"></i>
@@ -414,6 +444,8 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const keyword = ref('')
+const statusFilter = ref(null)
+const roleCodeFilter = ref('')
 
 const editDialogVisible = ref(false)
 const editFormRef = ref(null)
@@ -628,7 +660,9 @@ const loadData = async () => {
     const res = await getUserPage({
       current: currentPage.value,
       size: pageSize.value,
-      keyword: keyword.value || undefined
+      keyword: keyword.value || undefined,
+      status: statusFilter.value ?? undefined,
+      roleCode: roleCodeFilter.value || undefined
     })
     tableData.value = res.list || []
     total.value = res.total || 0
@@ -750,6 +784,7 @@ const confirmDelete = async (row) => {
 }
 
 onMounted(() => {
+  loadRoleOptions()
   loadData()
 })
 </script>
@@ -819,8 +854,9 @@ onMounted(() => {
 .search-wrap {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
-  max-width: 420px;
+  max-width: 760px;
   flex: 1;
   min-width: 220px;
 }
@@ -863,6 +899,20 @@ onMounted(() => {
 .search-input :deep(.el-input__wrapper.is-focus) {
   border-color: rgba(232, 165, 75, 0.5);
   box-shadow: 0 0 0 1px rgba(232, 165, 75, 0.2);
+}
+
+/* 筛选下拉：沿用搜索输入框的毛玻璃样式 */
+.filter-select :deep(.el-select__wrapper) {
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1.5px solid rgba(100, 70, 40, 0.5) !important;
+  box-shadow: none !important;
+}
+
+.filter-select :deep(.el-select__wrapper:hover),
+.filter-select :deep(.el-select__wrapper.is-focus) {
+  border-color: rgba(232, 165, 75, 0.7) !important;
+  box-shadow: 0 0 0 2px rgba(232, 165, 75, 0.15) !important;
 }
 
 .search-btn {
