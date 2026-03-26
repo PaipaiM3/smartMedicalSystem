@@ -45,6 +45,16 @@ export function updateUserStatus(id, status) {
 }
 
 /**
+ * 删除用户（同时解除角色关联）
+ */
+export function deleteUser(id) {
+  return request({
+    url: `/admin/user/${id}`,
+    method: 'delete'
+  })
+}
+
+/**
  * 更新角色信息
  */
 export function updateRole(id, data) {

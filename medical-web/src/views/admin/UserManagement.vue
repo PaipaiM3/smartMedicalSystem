@@ -51,7 +51,9 @@
           </el-table-column>
           <el-table-column prop="username" label="用户名" min-width="100">
             <template #default="{ row }">
-              <span class="cell-username">{{ row.username }}</span>
+              <span class="cell-username clickable" @click="openUserDetail(row)">
+                {{ row.username }}
+              </span>
             </template>
           </el-table-column>
           <el-table-column prop="name" label="姓名" min-width="90" />
@@ -86,7 +88,7 @@
               <span class="cell-time">{{ row.createdTime }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="160" align="center" fixed="right">
+          <el-table-column label="操作" width="220" align="center" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click="openEditDialog(row)">
                 <i class="fa-solid fa-pen"></i> 编辑
@@ -99,6 +101,9 @@
               >
                 <i :class="row.status === 1 ? 'fa-solid fa-ban' : 'fa-solid fa-check'"></i>
                 {{ row.status === 1 ? '禁用' : '启用' }}
+              </el-button>
+              <el-button link type="danger" size="small" @click="confirmDelete(row)">
+                <i class="fa-solid fa-trash"></i> 删除
               </el-button>
             </template>
           </el-table-column>
@@ -234,7 +239,7 @@
 
     <el-dialog
       v-model="editDialogVisible"
-      width="440px"
+      width="520px"
       class="user-mgmt-dialog"
       :close-on-click-modal="false"
       align-center
@@ -245,7 +250,7 @@
           <i class="fa-solid fa-pen-to-square dialog-icon"></i>
           <div>
             <span class="dialog-title">编辑用户信息</span>
-            <span class="dialog-subtitle">修改姓名、联系方式等</span>
+            <span class="dialog-subtitle">修改姓名、联系方式与角色</span>
           </div>
         </div>
       </template>
@@ -262,6 +267,23 @@
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="editForm.email" placeholder="请输入邮箱" maxlength="100" class="form-input" />
         </el-form-item>
+        <el-form-item label="角色" prop="roleIds" required>
+          <el-select
+            v-model="editForm.roleIds"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="请选择角色（可多选）"
+            class="role-select"
+          >
+            <el-option
+              v-for="r in roleOptions"
+              :key="r.roleId"
+              :label="`${r.roleName} (${r.roleCode})`"
+              :value="r.roleId"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="edit-dialog-footer">
@@ -272,13 +294,119 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 用户详情对话框（预留字段：结合开发文档） -->
+    <el-dialog
+      v-model="userDetailDialogVisible"
+      width="760px"
+      class="user-mgmt-dialog"
+      :close-on-click-modal="false"
+      align-center
+      @close="resetUserDetail"
+    >
+      <template #header>
+        <div class="edit-dialog-header">
+          <i class="fa-solid fa-user-tie dialog-icon"></i>
+          <div>
+            <span class="dialog-title">用户详情</span>
+            <span class="dialog-subtitle">预留字段展示（系统用户 / 患者 / 医生）</span>
+          </div>
+        </div>
+      </template>
+
+      <div class="detail-content">
+        <el-descriptions title="" :column="2" border size="small" class="detail-desc">
+          <el-descriptions-item label="用户ID">{{ userDetail.userId ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="用户名">{{ userDetail.username ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="姓名">{{ userDetail.name ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <span class="status-text">
+              {{ userDetail.status === 1 ? '启用' : userDetail.status === 0 ? '禁用' : '-' }}
+            </span>
+          </el-descriptions-item>
+          <el-descriptions-item label="手机号">{{ userDetail.mobilePhone ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="邮箱">{{ userDetail.email ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ userDetail.createdTime ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="角色">
+            <div class="role-tags">
+              <span v-for="r in (userDetail.roleNames || [])" :key="r" class="role-tag">
+                {{ r }}
+              </span>
+              <span v-if="!userDetail.roleNames?.length" class="no-role">-</span>
+            </div>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div v-if="isPatient">
+          <el-divider content-position="left">患者信息（patient）</el-divider>
+          <el-descriptions :column="2" border size="small" class="detail-desc">
+            <el-descriptions-item label="patient_no">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="gender">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="birth_date">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="phone">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="id_card">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="address">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="blood_type">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="status">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="allergy_history">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="chronic_diseases">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="emergency_contact">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="emergency_phone">-（预留）</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <div v-else-if="isDoctor">
+          <el-divider content-position="left">医生信息（doctor）</el-divider>
+          <el-descriptions :column="2" border size="small" class="detail-desc">
+            <el-descriptions-item label="doctor_no">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="dept_id">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="title">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="specialty">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="phone">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="consultation_fee">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="status">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="sort_order">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="introduction">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="remark">-（预留）</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <div v-else-if="isMedicalStaff">
+          <el-divider content-position="left">医务人员信息（护士/药师）</el-divider>
+          <el-descriptions :column="2" border size="small" class="detail-desc">
+            <el-descriptions-item label="头像URL">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="科室/部门ID">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="上次登录IP">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="上次登录时间">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="备注">-（预留）</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <div v-else class="detail-empty">
+          <el-divider content-position="left">员工信息（sys_user）</el-divider>
+          <el-descriptions :column="2" border size="small" class="detail-desc">
+            <el-descriptions-item label="头像URL">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="科室/部门ID">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="上次登录IP">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="上次登录时间">-（预留）</el-descriptions-item>
+            <el-descriptions-item label="备注">-（预留）</el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="edit-dialog-footer">
+          <el-button class="btn-cancel" @click="userDetailDialogVisible = false">关闭</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUserPage, getRoleList, createUser, updateUser, updateUserStatus } from '@/api/admin'
+import { getUserPage, getRoleList, createUser, updateUser, updateUserStatus, deleteUser } from '@/api/admin'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -295,10 +423,53 @@ const editForm = ref({
   username: '',
   name: '',
   mobilePhone: '',
-  email: ''
+  email: '',
+  roleIds: []
 })
 const editRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }]
+  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+  roleIds: [
+    {
+      type: 'array',
+      required: true,
+      message: '请至少选择一个角色',
+      trigger: 'change'
+    },
+    {
+      type: 'array',
+      min: 1,
+      message: '请至少选择一个角色',
+      trigger: 'change'
+    }
+  ]
+}
+
+const userDetailDialogVisible = ref(false)
+const userDetail = reactive({
+  userId: null,
+  username: '',
+  name: '',
+  email: '',
+  mobilePhone: '',
+  status: null,
+  createdTime: '',
+  roleNames: []
+})
+
+const roleText = computed(() => (userDetail.roleNames || []).join(' '))
+const isPatient = computed(() => roleText.value.includes('患者'))
+const isDoctor = computed(() => roleText.value.includes('医生'))
+const isMedicalStaff = computed(() => roleText.value.includes('护士') || roleText.value.includes('药师'))
+
+const resetUserDetail = () => {
+  userDetail.userId = null
+  userDetail.username = ''
+  userDetail.name = ''
+  userDetail.email = ''
+  userDetail.mobilePhone = ''
+  userDetail.status = null
+  userDetail.createdTime = ''
+  userDetail.roleNames = []
 }
 
 const createDialogVisible = ref(false)
@@ -468,19 +639,40 @@ const loadData = async () => {
   }
 }
 
-const openEditDialog = (row) => {
+const openEditDialog = async (row) => {
+  await loadRoleOptions()
   editForm.value = {
     userId: row.userId,
     username: row.username,
     name: row.name || '',
     mobilePhone: row.mobilePhone || '',
-    email: row.email || ''
+    email: row.email || '',
+    roleIds: Array.isArray(row.roleIds) ? [...row.roleIds] : []
   }
   editDialogVisible.value = true
 }
 
+const openUserDetail = (row) => {
+  userDetail.userId = row.userId
+  userDetail.username = row.username
+  userDetail.name = row.name || ''
+  userDetail.email = row.email || ''
+  userDetail.mobilePhone = row.mobilePhone || ''
+  userDetail.status = row.status
+  userDetail.createdTime = row.createdTime || ''
+  userDetail.roleNames = row.roleNames || []
+  userDetailDialogVisible.value = true
+}
+
 const resetEditForm = () => {
-  editForm.value = { userId: null, username: '', name: '', mobilePhone: '', email: '' }
+  editForm.value = {
+    userId: null,
+    username: '',
+    name: '',
+    mobilePhone: '',
+    email: '',
+    roleIds: []
+  }
   editFormRef.value?.resetFields()
 }
 
@@ -495,7 +687,8 @@ const submitEdit = async () => {
     await updateUser(editForm.value.userId, {
       name: editForm.value.name,
       mobilePhone: editForm.value.mobilePhone,
-      email: editForm.value.email
+      email: editForm.value.email,
+      roleIds: [...editForm.value.roleIds]
     })
     ElMessage.success('保存成功')
     editDialogVisible.value = false
@@ -526,6 +719,30 @@ const toggleStatus = async (row) => {
   try {
     await updateUserStatus(row.userId, newStatus)
     ElMessage.success(`${action}成功`)
+    loadData()
+  } catch (e) {
+    // 错误已由 request 拦截器处理
+  }
+}
+
+const confirmDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `删除后不可恢复，确定删除用户「${row.name || row.username}」吗？`,
+      '删除用户',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteUser(row.userId)
+    ElMessage.success('删除成功')
     loadData()
   } catch (e) {
     // 错误已由 request 拦截器处理
@@ -709,6 +926,12 @@ onMounted(() => {
   color: #2c1810;
 }
 
+.cell-username.clickable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(212, 130, 50, 0.6);
+}
+
 .cell-phone,
 .cell-time {
   color: #5c4a32;
@@ -791,6 +1014,12 @@ onMounted(() => {
 }
 .data-table :deep(.el-button.is-link[type="primary"]:hover) {
   color: #e8a54b;
+}
+.data-table :deep(.el-button.is-link.el-button--danger) {
+  color: #f56c6c;
+}
+.data-table :deep(.el-button.is-link.el-button--danger:hover) {
+  color: #f89898;
 }
 
 /* 用户表单对话框（新增 / 编辑） */
@@ -898,6 +1127,13 @@ onMounted(() => {
 .user-mgmt-dialog :deep(.el-dialog__footer) {
   padding: 16px 24px 24px;
   border-top: 1px solid rgba(139, 90, 43, 0.08);
+}
+
+.detail-empty {
+  padding: 8px 4px 0 4px;
+  color: #5c4a32;
+  font-size: 13px;
+  opacity: 0.9;
 }
 
 .edit-dialog-footer {

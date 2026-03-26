@@ -67,6 +67,12 @@ public class SysUserController {
             vo.setMobilePhone(u.getMobilePhone());
             vo.setStatus(u.getStatus());
             vo.setCreatedTime(u.getCreatedTime());
+            List<SysUserRole> userRoles = sysUserRoleMapper.selectList(
+                    new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, u.getUserId()));
+            List<Long> roleIds = userRoles.stream()
+                    .map(SysUserRole::getRoleId)
+                    .collect(Collectors.toList());
+            vo.setRoleIds(roleIds);
             List<String> roleNames = sysRoleMapper.selectRoleNamesByUserId(u.getUserId());
             vo.setRoleNames(roleNames != null ? roleNames : Collections.emptyList());
             return vo;
@@ -135,6 +141,7 @@ public class SysUserController {
     }
 
     @PutMapping("/{id}")
+    @Transactional(rollbackFor = Exception.class)
     public ResultVo<Void> update(
             @PathVariable(value = "id") Long id,
             @RequestBody UserUpdateDto dto) {
@@ -144,10 +151,59 @@ public class SysUserController {
         }
         LambdaUpdateWrapper<SysUser> wrapper = new LambdaUpdateWrapper<SysUser>()
                 .eq(SysUser::getUserId, id);
-        if (dto.getName() != null) wrapper.set(SysUser::getName, dto.getName());
-        if (dto.getEmail() != null) wrapper.set(SysUser::getEmail, dto.getEmail());
-        if (dto.getMobilePhone() != null) wrapper.set(SysUser::getMobilePhone, dto.getMobilePhone());
-        sysUserMapper.update(null, wrapper);
+        boolean hasUserField = false;
+        if (dto.getName() != null) {
+            wrapper.set(SysUser::getName, dto.getName());
+            hasUserField = true;
+        }
+        if (dto.getEmail() != null) {
+            wrapper.set(SysUser::getEmail, dto.getEmail());
+            hasUserField = true;
+        }
+        if (dto.getMobilePhone() != null) {
+            wrapper.set(SysUser::getMobilePhone, dto.getMobilePhone());
+            hasUserField = true;
+        }
+        if (hasUserField) {
+            sysUserMapper.update(null, wrapper);
+        }
+
+        if (dto.getRoleIds() != null) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                    .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
+            List<String> existingCodes = sysRoleMapper.selectRoleCodesByUserId(id);
+            if (!isSuperAdmin && existingCodes != null && existingCodes.contains("SUPER_ADMIN")) {
+                throw new BusinessWarningException("无权修改超级管理员的角色");
+            }
+            List<Long> roleIds = dto.getRoleIds().stream().distinct().collect(Collectors.toList());
+            if (roleIds.isEmpty()) {
+                throw new BusinessWarningException("请至少选择一个角色");
+            }
+            List<SysRole> roles = sysRoleMapper.selectList(
+                    new LambdaQueryWrapper<SysRole>().in(SysRole::getRoleId, roleIds));
+            if (roles.size() != roleIds.size()) {
+                throw new BusinessWarningException("存在无效的角色编号");
+            }
+            for (SysRole r : roles) {
+                if (r.getStatus() == null || r.getStatus() != 1) {
+                    throw new BusinessWarningException("不能分配已禁用的角色：" + r.getRoleName());
+                }
+            }
+            if (!isSuperAdmin && roles.stream().anyMatch(r -> "SUPER_ADMIN".equals(r.getRoleCode()))) {
+                throw new BusinessWarningException("无权分配超级管理员角色");
+            }
+            sysUserRoleMapper.delete(
+                    new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
+            LocalDateTime now = LocalDateTime.now();
+            for (Long roleId : roleIds) {
+                SysUserRole ur = new SysUserRole();
+                ur.setUserId(id);
+                ur.setRoleId(roleId);
+                ur.setCreatedTime(now);
+                sysUserRoleMapper.insert(ur);
+            }
+        }
         return ResultVo.ok();
     }
 
@@ -165,6 +221,29 @@ public class SysUserController {
         sysUserMapper.update(null, new LambdaUpdateWrapper<SysUser>()
                 .eq(SysUser::getUserId, id)
                 .set(SysUser::getStatus, status));
+        return ResultVo.ok();
+    }
+
+    @DeleteMapping("/{id}")
+    @Transactional(rollbackFor = Exception.class)
+    public ResultVo<Void> delete(@PathVariable(value = "id") Long id) {
+        SysUser exist = sysUserMapper.selectById(id);
+        if (exist == null) {
+            throw new ServiceException("用户不存在");
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && exist.getUsername().equals(auth.getName())) {
+            throw new BusinessWarningException("不能删除当前登录账号");
+        }
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
+        List<String> roleCodes = sysRoleMapper.selectRoleCodesByUserId(id);
+        if (!isSuperAdmin && roleCodes != null && roleCodes.contains("SUPER_ADMIN")) {
+            throw new BusinessWarningException("无权删除超级管理员账号");
+        }
+        sysUserRoleMapper.delete(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
+        sysUserMapper.deleteById(id);
         return ResultVo.ok();
     }
 }
