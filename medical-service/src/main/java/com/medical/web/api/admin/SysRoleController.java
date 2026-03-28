@@ -3,18 +3,27 @@ package com.medical.web.api.admin;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.medical.common.exception.BusinessWarningException;
 import com.medical.common.exception.ServiceException;
 import com.medical.common.pagination.PageResult;
 import com.medical.common.response.ResultVo;
+import com.medical.domain.dto.RoleCreateDto;
 import com.medical.domain.dto.RoleUpdateDto;
 import com.medical.domain.entity.SysRole;
+import com.medical.domain.entity.SysUserRole;
 import com.medical.domain.vo.RoleListVo;
 import com.medical.mapper.SysRoleMapper;
+import com.medical.mapper.SysUserRoleMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -27,16 +36,77 @@ import java.util.stream.Collectors;
 public class SysRoleController {
 
     private final SysRoleMapper sysRoleMapper;
+    private final SysUserRoleMapper sysUserRoleMapper;
+
+    @PostMapping
+    public ResultVo<Void> create(@Valid @RequestBody RoleCreateDto dto) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
+        if (!isSuperAdmin) {
+            throw new BusinessWarningException("仅超级管理员可新增角色");
+        }
+
+        String code = dto.getRoleCode().trim().toUpperCase();
+        long exist = sysRoleMapper.selectCount(
+                new LambdaQueryWrapper<SysRole>().eq(SysRole::getRoleCode, code));
+        if (exist > 0) {
+            throw new BusinessWarningException("角色代码已存在");
+        }
+        int status = 1;
+        if (dto.getStatus() != null) {
+            if (dto.getStatus() != 0 && dto.getStatus() != 1) {
+                throw new ServiceException("状态值无效");
+            }
+            status = dto.getStatus();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        SysRole role = new SysRole();
+        role.setRoleCode(code);
+        role.setRoleName(dto.getRoleName().trim());
+        role.setDescription(StringUtils.hasText(dto.getDescription()) ? dto.getDescription().trim() : null);
+        role.setStatus(status);
+        role.setCreatedTime(now);
+        role.setUpdatedTime(now);
+        sysRoleMapper.insert(role);
+        return ResultVo.ok();
+    }
+
+    @DeleteMapping("/{id}")
+    @Transactional(rollbackFor = Exception.class)
+    public ResultVo<Void> delete(@PathVariable(value = "id") Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isSuperAdmin = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
+        if (!isSuperAdmin) {
+            throw new BusinessWarningException("仅超级管理员可删除角色");
+        }
+        SysRole exist = sysRoleMapper.selectById(id);
+        if (exist == null) {
+            throw new ServiceException("角色不存在");
+        }
+        if ("SUPER_ADMIN".equals(exist.getRoleCode())) {
+            throw new BusinessWarningException("系统保留角色不可删除");
+        }
+        sysUserRoleMapper.delete(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, id));
+        sysRoleMapper.deleteById(id);
+        return ResultVo.ok();
+    }
 
     @GetMapping("/page")
     public ResultVo<PageResult<RoleListVo>> page(
             @RequestParam(value = "current", defaultValue = "1") Long current,
             @RequestParam(value = "size", defaultValue = "10") Long size,
-            @RequestParam(value = "keyword", required = false) String keyword) {
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "status", required = false) Integer status) {
         LambdaQueryWrapper<SysRole> wrapper = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) {
             wrapper.and(w -> w.like(SysRole::getRoleCode, keyword)
                     .or().like(SysRole::getRoleName, keyword));
+        }
+        if (status != null) {
+            wrapper.eq(SysRole::getStatus, status);
         }
         wrapper.orderByAsc(SysRole::getRoleId);
         Page<SysRole> page = sysRoleMapper.selectPage(new Page<>(current, size), wrapper);

@@ -55,6 +55,27 @@ export function deleteUser(id) {
 }
 
 /**
+ * 新增角色
+ */
+export function createRole(data) {
+  return request({
+    url: '/admin/role',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 删除角色（解除用户关联后删除）
+ */
+export function deleteRole(id) {
+  return request({
+    url: `/admin/role/${id}`,
+    method: 'delete'
+  })
+}
+
+/**
  * 更新角色信息
  */
 export function updateRole(id, data) {

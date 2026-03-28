@@ -28,7 +28,24 @@
             <i class="fa-solid fa-search"></i>
             搜索
           </el-button>
+
+          <el-select
+            v-model="statusFilter"
+            placeholder="状态"
+            clearable
+            size="large"
+            class="filter-select"
+            style="width: 120px"
+            @change="loadData"
+          >
+            <el-option :value="1" label="启用" />
+            <el-option :value="0" label="禁用" />
+          </el-select>
         </div>
+        <el-button v-if="isSuperAdmin" class="add-user-btn" @click="openCreateDialog">
+          <i class="fa-solid fa-plus"></i>
+          新增角色
+        </el-button>
       </div>
 
       <div class="table-wrap" v-loading="loading" element-loading-text="加载中...">
@@ -65,7 +82,7 @@
               <span class="cell-time">{{ row.createdTime }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="160" align="center" fixed="right">
+          <el-table-column label="操作" :width="isSuperAdmin ? 220 : 160" align="center" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click="openEditDialog(row)">
                 <i class="fa-solid fa-pen"></i> 编辑
@@ -78,6 +95,15 @@
               >
                 <i :class="row.status === 1 ? 'fa-solid fa-ban' : 'fa-solid fa-check'"></i>
                 {{ row.status === 1 ? '禁用' : '启用' }}
+              </el-button>
+              <el-button
+                v-if="isSuperAdmin && row.roleCode !== 'SUPER_ADMIN'"
+                link
+                type="danger"
+                size="small"
+                @click="confirmDeleteRole(row)"
+              >
+                <i class="fa-solid fa-trash"></i> 删除
               </el-button>
             </template>
           </el-table-column>
@@ -134,13 +160,97 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 新增角色对话框（仅超级管理员） -->
+    <el-dialog
+      v-if="isSuperAdmin"
+      v-model="createDialogVisible"
+      width="440px"
+      class="edit-dialog"
+      :close-on-click-modal="false"
+      align-center
+      @close="resetCreateForm"
+    >
+      <template #header>
+        <div class="edit-dialog-header">
+          <i class="fa-solid fa-user-shield dialog-icon"></i>
+          <div>
+            <span class="dialog-title">新增角色</span>
+            <span class="dialog-subtitle">角色代码保存后将转为大写，且不可重复</span>
+          </div>
+        </div>
+      </template>
+      <el-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        label-position="top"
+        class="edit-form"
+      >
+        <el-form-item label="角色代码" prop="roleCode" required>
+          <el-input
+            v-model="createForm.roleCode"
+            placeholder="字母、数字、下划线，如 custom_role"
+            maxlength="50"
+            show-word-limit
+            class="form-input"
+          />
+        </el-form-item>
+        <el-form-item label="角色名称" prop="roleName" required>
+          <el-input
+            v-model="createForm.roleName"
+            placeholder="请输入角色名称"
+            maxlength="50"
+            show-word-limit
+            class="form-input"
+          />
+        </el-form-item>
+        <el-form-item label="描述" prop="description">
+          <el-input
+            v-model="createForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="选填"
+            maxlength="200"
+            show-word-limit
+            class="form-input"
+          />
+        </el-form-item>
+        <el-form-item label="初始状态" prop="status">
+          <el-radio-group v-model="createForm.status">
+            <el-radio :label="1">启用</el-radio>
+            <el-radio :label="0">禁用</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="edit-dialog-footer">
+          <el-button class="btn-cancel" @click="createDialogVisible = false">取消</el-button>
+          <el-button class="btn-save" :loading="createSubmitting" @click="submitCreate">确定</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getRolePage, updateRole, updateRoleStatus } from '@/api/admin'
+import { getRolePage, createRole, updateRole, updateRoleStatus, deleteRole } from '@/api/admin'
+
+const userInfo = computed(() => {
+  try {
+    return JSON.parse(sessionStorage.getItem('userInfo') || '{}')
+  } catch {
+    return {}
+  }
+})
+
+/** 与后端 ROLE_SUPER_ADMIN 对应，登录信息中的 roles 为角色代码列表 */
+const isSuperAdmin = computed(() => {
+  const roles = userInfo.value?.roles
+  return Array.isArray(roles) && roles.includes('SUPER_ADMIN')
+})
 
 const loading = ref(false)
 const tableData = ref([])
@@ -148,6 +258,7 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const keyword = ref('')
+const statusFilter = ref(null)
 
 const editDialogVisible = ref(false)
 const editFormRef = ref(null)
@@ -159,6 +270,28 @@ const editForm = ref({
   description: ''
 })
 const editRules = {
+  roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }]
+}
+
+const createDialogVisible = ref(false)
+const createFormRef = ref(null)
+const createSubmitting = ref(false)
+const createForm = ref({
+  roleCode: '',
+  roleName: '',
+  description: '',
+  status: 1
+})
+const createRules = {
+  roleCode: [
+    { required: true, message: '请输入角色代码', trigger: 'blur' },
+    {
+      pattern: /^[A-Za-z0-9_]+$/,
+      message: '仅支持字母、数字与下划线',
+      trigger: 'blur'
+    },
+    { min: 2, max: 50, message: '长度为 2～50 个字符', trigger: 'blur' }
+  ],
   roleName: [{ required: true, message: '请输入角色名称', trigger: 'blur' }]
 }
 
@@ -174,13 +307,52 @@ const tableRowClassName = ({ rowIndex }) => {
   return rowIndex % 2 === 1 ? 'striped-row' : ''
 }
 
+const resetCreateForm = () => {
+  createForm.value = { roleCode: '', roleName: '', description: '', status: 1 }
+  createFormRef.value?.resetFields()
+}
+
+const openCreateDialog = () => {
+  createDialogVisible.value = true
+  nextTick(() => {
+    createForm.value = { roleCode: '', roleName: '', description: '', status: 1 }
+    createFormRef.value?.resetFields()
+  })
+}
+
+const submitCreate = async () => {
+  try {
+    await createFormRef.value?.validate()
+  } catch {
+    return
+  }
+  createSubmitting.value = true
+  try {
+    await createRole({
+      roleCode: createForm.value.roleCode.trim(),
+      roleName: createForm.value.roleName.trim(),
+      description: createForm.value.description?.trim() || undefined,
+      status: createForm.value.status
+    })
+    ElMessage.success('新增角色成功')
+    createDialogVisible.value = false
+    currentPage.value = 1
+    loadData()
+  } catch (e) {
+    // 错误已由 request 拦截器处理
+  } finally {
+    createSubmitting.value = false
+  }
+}
+
 const loadData = async () => {
   loading.value = true
   try {
     const res = await getRolePage({
       current: currentPage.value,
       size: pageSize.value,
-      keyword: keyword.value || undefined
+      keyword: keyword.value || undefined,
+      status: statusFilter.value ?? undefined
     })
     tableData.value = res.list || []
     total.value = res.total || 0
@@ -253,6 +425,30 @@ const toggleStatus = async (row) => {
   }
 }
 
+const confirmDeleteRole = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `删除将解除所有用户的该角色关联，且不可恢复。确定删除角色「${row.roleName || row.roleCode}」吗？`,
+      '删除角色',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+  } catch {
+    return
+  }
+  try {
+    await deleteRole(row.roleId)
+    ElMessage.success('删除成功')
+    loadData()
+  } catch (e) {
+    // 错误已由 request 拦截器处理
+  }
+}
+
 onMounted(() => {
   loadData()
 })
@@ -311,6 +507,11 @@ onMounted(() => {
 }
 
 .toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
   padding: 18px 24px;
   border-bottom: 1px solid rgba(139, 90, 43, 0.1);
 }
@@ -318,8 +519,11 @@ onMounted(() => {
 .search-wrap {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
-  max-width: 420px;
+  max-width: 760px;
+  flex: 1;
+  min-width: 220px;
 }
 
 .search-icon {
@@ -345,6 +549,19 @@ onMounted(() => {
   box-shadow: 0 0 0 1px rgba(232, 165, 75, 0.2);
 }
 
+.filter-select :deep(.el-select__wrapper) {
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  border: 1.5px solid rgba(100, 70, 40, 0.5) !important;
+  box-shadow: none !important;
+}
+
+.filter-select :deep(.el-select__wrapper:hover),
+.filter-select :deep(.el-select__wrapper.is-focus) {
+  border-color: rgba(232, 165, 75, 0.7) !important;
+  box-shadow: 0 0 0 2px rgba(232, 165, 75, 0.15) !important;
+}
+
 .search-btn {
   background: linear-gradient(135deg, #e8a54b, #d48232);
   border: none;
@@ -356,6 +573,23 @@ onMounted(() => {
 }
 
 .search-btn:hover {
+  background: linear-gradient(135deg, #f0b55c, #e08d3a);
+  color: #fff;
+  box-shadow: 0 5px 18px rgba(212, 130, 50, 0.4);
+}
+
+.add-user-btn {
+  background: linear-gradient(135deg, #e8a54b, #d48232);
+  border: none;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(212, 130, 50, 0.3);
+  flex-shrink: 0;
+}
+
+.add-user-btn:hover {
   background: linear-gradient(135deg, #f0b55c, #e08d3a);
   color: #fff;
   box-shadow: 0 5px 18px rgba(212, 130, 50, 0.4);
@@ -473,6 +707,12 @@ onMounted(() => {
 }
 .data-table :deep(.el-button.is-link[type="primary"]:hover) {
   color: #e8a54b;
+}
+.data-table :deep(.el-button.is-link.el-button--danger) {
+  color: #f56c6c;
+}
+.data-table :deep(.el-button.is-link.el-button--danger:hover) {
+  color: #f89898;
 }
 
 /* 编辑对话框 */

@@ -33,7 +33,7 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 
-# Knife4j
+# Knife4j1
 springdoc:
   api-docs:
     enabled: true
