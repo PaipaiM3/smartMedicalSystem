@@ -58,6 +58,10 @@
             <el-option :value="0" label="停用" />
           </el-select>
         </div>
+        <el-button class="add-user-btn" @click="openCreateDialog">
+          <i class="fa-solid fa-plus"></i>
+          新增药品
+        </el-button>
       </div>
 
       <div class="table-wrap" v-loading="loading" element-loading-text="加载中...">
@@ -72,7 +76,11 @@
               <span class="cell-code">{{ row.medicineCode }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="name" label="药品名称" min-width="140" />
+          <el-table-column prop="name" label="药品名称" min-width="140">
+            <template #default="{ row }">
+              <span class="cell-name-link" @click="openDetail(row)">{{ row.name }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="commonName" label="通用名" min-width="120" />
           <el-table-column prop="categoryName" label="分类" width="130">
             <template #default="{ row }">
@@ -117,12 +125,199 @@
         </div>
       </div>
     </div>
+
+    <!-- 新增药品 -->
+    <el-dialog
+      v-model="createDialogVisible"
+      width="780px"
+      class="medicine-dialog edit-dialog create-medicine-dialog"
+      :close-on-click-modal="false"
+      align-center
+      @close="resetCreateForm"
+    >
+      <template #header>
+        <div class="edit-dialog-header">
+          <i class="fa-solid fa-capsules dialog-icon"></i>
+          <div>
+            <span class="dialog-title">{{ isEditMode ? '编辑药品' : '新增药品' }}</span>
+            <span class="dialog-subtitle">
+              {{ isEditMode ? '修改药品信息（药品编码不可更改）' : '填写编码、分类、规格与价格等信息' }}
+            </span>
+          </div>
+        </div>
+      </template>
+      <el-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        label-position="top"
+        class="edit-form create-medicine-form"
+      >
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="药品编码" prop="medicineCode" required>
+              <el-input
+                v-model="createForm.medicineCode"
+                placeholder="唯一编码，如 MED000999"
+                maxlength="50"
+                clearable
+                :disabled="isEditMode"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="药品名称" prop="name" required>
+              <el-input v-model="createForm.name" placeholder="商品名/制剂名" maxlength="100" show-word-limit />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="通用名" prop="commonName">
+              <el-input v-model="createForm.commonName" placeholder="选填" maxlength="100" show-word-limit />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="药品分类" prop="categoryId" required>
+              <el-select v-model="createForm.categoryId" placeholder="请选择" filterable style="width: 100%">
+                <el-option
+                  v-for="c in categoryOptions"
+                  :key="c.categoryId"
+                  :label="c.name"
+                  :value="c.categoryId"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="规格" prop="spec" required>
+              <el-input v-model="createForm.spec" placeholder="如 0.25g*24粒" maxlength="100" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="单位" prop="unit" required>
+              <el-input v-model="createForm.unit" placeholder="盒/瓶/支等" maxlength="20" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="生产厂家" prop="manufacturer" required>
+          <el-input v-model="createForm.manufacturer" placeholder="生产厂家全称" maxlength="200" />
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="批准文号" prop="approvalNo">
+              <el-input v-model="createForm.approvalNo" placeholder="选填" maxlength="100" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态" prop="status">
+              <el-radio-group v-model="createForm.status">
+                <el-radio :label="1">在用</el-radio>
+                <el-radio :label="0">停用</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="零售价" prop="unitPrice" required>
+              <el-input-number v-model="createForm.unitPrice" :min="0" :precision="2" :step="0.5" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="成本价" prop="costPrice">
+              <el-input-number v-model="createForm.costPrice" :min="0" :precision="2" :step="0.5" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="库存数量" prop="stockQuantity" required>
+              <el-input-number v-model="createForm.stockQuantity" :min="0" :step="1" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="最低库存" prop="minStock" required>
+              <el-input-number v-model="createForm.minStock" :min="0" :step="1" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="createForm.remark" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="选填" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="edit-dialog-footer">
+          <el-button class="btn-cancel" @click="createDialogVisible = false">取消</el-button>
+          <el-button class="btn-save" :loading="createSubmitting" @click="submitMedicineForm">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 药品详情 -->
+    <el-dialog
+      v-model="detailDialogVisible"
+      width="640px"
+      class="medicine-dialog edit-dialog"
+      :close-on-click-modal="false"
+      align-center
+      @close="resetDetail"
+    >
+      <template #header>
+        <div class="edit-dialog-header">
+          <i class="fa-solid fa-file-medical dialog-icon"></i>
+          <div>
+            <span class="dialog-title">药品详情</span>
+            <span class="dialog-subtitle">{{ detail.name || '-' }}</span>
+          </div>
+        </div>
+      </template>
+      <div v-loading="detailLoading" class="detail-body">
+        <el-descriptions :column="2" border size="small" class="detail-desc">
+          <el-descriptions-item label="药品编码">{{ detail.medicineCode ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="药品名称">{{ detail.name ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="通用名">{{ detail.commonName ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="分类">{{ detail.categoryName ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="规格">{{ detail.spec ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="单位">{{ detail.unit ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="生产厂家" :span="2">{{ detail.manufacturer ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="批准文号" :span="2">{{ detail.approvalNo ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="零售价">{{ formatMoney(detail.unitPrice) }}</el-descriptions-item>
+          <el-descriptions-item label="成本价">{{ formatMoney(detail.costPrice) }}</el-descriptions-item>
+          <el-descriptions-item label="库存数量">{{ detail.stockQuantity ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="最低库存">{{ detail.minStock ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            {{ detail.status === 1 ? '在用' : detail.status === 0 ? '停用' : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ detail.createdTime ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="更新时间">{{ detail.updatedTime ?? '-' }}</el-descriptions-item>
+          <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <template #footer>
+        <div class="edit-dialog-footer">
+          <el-button class="btn-cancel" @click="detailDialogVisible = false">关闭</el-button>
+          <el-button class="btn-save" :disabled="detailLoading || !detail.medicineId" @click="openEditFromDetail">
+            编辑
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getMedicinePage, getMedicineCategories } from '@/api/admin'
+import { ref, onMounted, reactive } from 'vue'
+import { ElMessage } from 'element-plus'
+import {
+  getMedicinePage,
+  getMedicineCategories,
+  createMedicine,
+  updateMedicine,
+  getMedicineDetail
+} from '@/api/admin'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -133,6 +328,44 @@ const keyword = ref('')
 const categoryIdFilter = ref(null)
 const statusFilter = ref(null)
 const categoryOptions = ref([])
+
+const createDialogVisible = ref(false)
+const isEditMode = ref(false)
+const editingMedicineId = ref(null)
+const createFormRef = ref(null)
+const createSubmitting = ref(false)
+const createForm = reactive({
+  medicineCode: '',
+  name: '',
+  commonName: '',
+  categoryId: null,
+  spec: '',
+  unit: '',
+  manufacturer: '',
+  approvalNo: '',
+  unitPrice: 0,
+  costPrice: undefined,
+  stockQuantity: 0,
+  minStock: 10,
+  status: 1,
+  remark: ''
+})
+
+const createRules = {
+  medicineCode: [{ required: true, message: '请输入药品编码', trigger: 'blur' }],
+  name: [{ required: true, message: '请输入药品名称', trigger: 'blur' }],
+  categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
+  spec: [{ required: true, message: '请输入规格', trigger: 'blur' }],
+  unit: [{ required: true, message: '请输入单位', trigger: 'blur' }],
+  manufacturer: [{ required: true, message: '请输入生产厂家', trigger: 'blur' }],
+  unitPrice: [{ required: true, message: '请填写零售价', trigger: 'change' }],
+  stockQuantity: [{ required: true, message: '请填写库存', trigger: 'change' }],
+  minStock: [{ required: true, message: '请填写最低库存', trigger: 'change' }]
+}
+
+const detailDialogVisible = ref(false)
+const detailLoading = ref(false)
+const detail = ref({})
 
 const headerCellStyle = {
   background: 'rgba(139, 90, 43, 0.08)',
@@ -178,6 +411,120 @@ const loadData = async () => {
     tableData.value = []
   } finally {
     loading.value = false
+  }
+}
+
+const resetCreateForm = () => {
+  isEditMode.value = false
+  editingMedicineId.value = null
+  createForm.medicineCode = ''
+  createForm.name = ''
+  createForm.commonName = ''
+  createForm.categoryId = null
+  createForm.spec = ''
+  createForm.unit = ''
+  createForm.manufacturer = ''
+  createForm.approvalNo = ''
+  createForm.unitPrice = 0
+  createForm.costPrice = undefined
+  createForm.stockQuantity = 0
+  createForm.minStock = 10
+  createForm.status = 1
+  createForm.remark = ''
+  createFormRef.value?.resetFields()
+}
+
+const fillFormFromDetail = (d) => {
+  createForm.medicineCode = d.medicineCode ?? ''
+  createForm.name = d.name ?? ''
+  createForm.commonName = d.commonName ?? ''
+  createForm.categoryId = d.categoryId ?? null
+  createForm.spec = d.spec ?? ''
+  createForm.unit = d.unit ?? ''
+  createForm.manufacturer = d.manufacturer ?? ''
+  createForm.approvalNo = d.approvalNo ?? ''
+  createForm.unitPrice = d.unitPrice != null ? Number(d.unitPrice) : 0
+  createForm.costPrice = d.costPrice != null ? Number(d.costPrice) : undefined
+  createForm.stockQuantity = d.stockQuantity != null ? Number(d.stockQuantity) : 0
+  createForm.minStock = d.minStock != null ? Number(d.minStock) : 10
+  createForm.status = d.status === 0 ? 0 : 1
+  createForm.remark = d.remark ?? ''
+}
+
+const openCreateDialog = () => {
+  resetCreateForm()
+  createDialogVisible.value = true
+}
+
+const openEditFromDetail = () => {
+  const d = detail.value
+  if (!d?.medicineId) return
+  isEditMode.value = true
+  editingMedicineId.value = d.medicineId
+  fillFormFromDetail(d)
+  detailDialogVisible.value = false
+  createDialogVisible.value = true
+}
+
+const submitMedicineForm = async () => {
+  try {
+    await createFormRef.value?.validate()
+  } catch {
+    return
+  }
+  createSubmitting.value = true
+  const body = {
+    name: createForm.name.trim(),
+    commonName: createForm.commonName?.trim() || undefined,
+    categoryId: createForm.categoryId,
+    spec: createForm.spec.trim(),
+    unit: createForm.unit.trim(),
+    manufacturer: createForm.manufacturer.trim(),
+    approvalNo: createForm.approvalNo?.trim() || undefined,
+    unitPrice: createForm.unitPrice,
+    costPrice: createForm.costPrice,
+    stockQuantity: createForm.stockQuantity,
+    minStock: createForm.minStock,
+    status: createForm.status,
+    remark: createForm.remark?.trim() || undefined
+  }
+  try {
+    if (isEditMode.value && editingMedicineId.value != null) {
+      await updateMedicine(editingMedicineId.value, body)
+      ElMessage.success('保存成功')
+    } else {
+      await createMedicine({
+        medicineCode: createForm.medicineCode.trim(),
+        ...body
+      })
+      ElMessage.success('新增成功')
+      currentPage.value = 1
+    }
+    createDialogVisible.value = false
+    resetCreateForm()
+    loadData()
+  } catch {
+    // 拦截器已提示
+  } finally {
+    createSubmitting.value = false
+  }
+}
+
+const resetDetail = () => {
+  detail.value = {}
+}
+
+const openDetail = async (row) => {
+  detailDialogVisible.value = true
+  detailLoading.value = true
+  detail.value = {}
+  try {
+    const data = await getMedicineDetail(row.medicineId)
+    detail.value = data || {}
+  } catch {
+    detail.value = {}
+  } finally {
+    detailLoading.value = false
   }
 }
 
@@ -312,6 +659,34 @@ onMounted(() => {
   box-shadow: 0 5px 18px rgba(212, 130, 50, 0.4);
 }
 
+.add-user-btn {
+  background: linear-gradient(135deg, #e8a54b, #d48232);
+  border: none;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgba(212, 130, 50, 0.3);
+  flex-shrink: 0;
+}
+
+.add-user-btn:hover {
+  background: linear-gradient(135deg, #f0b55c, #e08d3a);
+  color: #fff;
+  box-shadow: 0 5px 18px rgba(212, 130, 50, 0.4);
+}
+
+.cell-name-link {
+  color: #d48232;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cell-name-link:hover {
+  color: #e8a54b;
+  text-decoration: underline;
+}
+
 .table-wrap {
   padding: 0 24px 24px;
 }
@@ -398,5 +773,128 @@ onMounted(() => {
 .pagination-wrap :deep(.el-pagination .el-pagination__total) {
   color: #5c4a32;
   font-weight: 500;
+}
+
+/* 新增 / 详情对话框（与角色管理一致） */
+.medicine-dialog.edit-dialog :deep(.el-dialog) {
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 252, 250, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8px 40px rgba(61, 41, 20, 0.15), 0 0 0 1px rgba(139, 90, 43, 0.08);
+}
+
+.medicine-dialog.edit-dialog :deep(.el-dialog__header) {
+  padding: 20px 24px;
+  margin: 0;
+  border-bottom: 1px solid rgba(139, 90, 43, 0.12);
+  background: rgba(255, 250, 245, 0.5);
+}
+
+.edit-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dialog-icon {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  text-align: center;
+  font-size: 20px;
+  color: #fff;
+  background: linear-gradient(135deg, #e8a54b, #d48232);
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(212, 130, 50, 0.3);
+}
+
+.dialog-title {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  color: #2c1810;
+}
+
+.dialog-subtitle {
+  font-size: 12px;
+  color: #5c4a32;
+  margin-top: 2px;
+}
+
+.medicine-dialog.edit-dialog :deep(.el-dialog__body) {
+  padding: 20px 24px 8px;
+}
+
+/* 新增药品：横置两列 + 小屏时正文区域可滚动，避免撑出屏幕 */
+.create-medicine-dialog :deep(.el-dialog__body) {
+  max-height: min(520px, calc(100vh - 200px));
+  overflow-y: auto;
+  padding: 12px 24px 4px;
+}
+
+.edit-form :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.create-medicine-dialog .create-medicine-form :deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+
+.edit-form :deep(.el-form-item__label) {
+  color: #5c4a32;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.edit-form :deep(.el-input__wrapper) {
+  border-radius: 10px;
+  border: 1px solid rgba(139, 90, 43, 0.2);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: none;
+}
+
+.edit-form :deep(.el-textarea__inner) {
+  border-radius: 10px;
+  border: 1px solid rgba(139, 90, 43, 0.2);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.medicine-dialog.edit-dialog :deep(.el-dialog__footer) {
+  padding: 16px 24px 24px;
+  border-top: 1px solid rgba(139, 90, 43, 0.08);
+}
+
+.edit-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-cancel {
+  border-radius: 10px;
+  padding: 10px 20px;
+  border: 1px solid rgba(139, 90, 43, 0.3);
+  color: #5c4a32;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.btn-save {
+  border-radius: 10px;
+  padding: 10px 24px;
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #e8a54b, #d48232);
+  box-shadow: 0 4px 14px rgba(212, 130, 50, 0.3);
+}
+
+.detail-body {
+  min-height: 120px;
+}
+
+.detail-desc :deep(.el-descriptions__label) {
+  width: 100px;
+  color: #5c4a32;
 }
 </style>

@@ -139,3 +139,35 @@ export function getMedicineCategories() {
     method: 'get'
   })
 }
+
+/**
+ * 新增药品
+ */
+export function createMedicine(data) {
+  return request({
+    url: '/admin/medicine',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 更新药品
+ */
+export function updateMedicine(id, data) {
+  return request({
+    url: `/admin/medicine/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+/**
+ * 药品详情
+ */
+export function getMedicineDetail(id) {
+  return request({
+    url: `/admin/medicine/${id}`,
+    method: 'get'
+  })
+}
