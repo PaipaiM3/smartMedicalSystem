@@ -28,7 +28,7 @@ const routes = [
       {
         path: 'admin/medicine-stock-warning',
         name: 'MedicineStockWarning',
-        component: () => import('@/views/admin/MedicineList.vue'),
+        component: () => import('@/views/admin/MedicineStockWarning.vue'),
         meta: { title: '库存预警', stockWarningOnly: true }
       },
       { path: 'admin/system/user', component: () => import('@/views/admin/UserManagement.vue'), meta: { title: '用户管理' } },

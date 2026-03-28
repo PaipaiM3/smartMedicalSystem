@@ -2,15 +2,12 @@
   <div class="medicine-list-page">
     <div class="page-header">
       <div class="header-left">
-        <i :class="pageIconClass"></i>
+        <i class="fa-solid fa-pills page-icon"></i>
         <div>
-          <h2 class="page-title">{{ pageTitle }}</h2>
+          <h2 class="page-title">药品列表</h2>
           <p class="page-desc">
-            {{ pageDesc }}
-            <span
-              v-if="stockWarningSwitch && !isStockWarningRoute"
-              class="page-desc-badge"
-            >当前：仅显示库存预警</span>
+            查询药品编码、分类、规格与库存信息
+            <span v-if="stockWarningSwitch" class="page-desc-badge">当前：仅显示库存预警</span>
           </p>
         </div>
       </div>
@@ -21,12 +18,12 @@
         <div class="search-wrap">
           <i class="fa-solid fa-magnifying-glass search-icon"></i>
           <el-input
-            v-model="keyword"
-            placeholder="搜索药品名称、通用名或编码"
-            clearable
-            class="search-input"
-            @clear="loadData"
-            @keyup.enter="loadData"
+              v-model="keyword"
+              placeholder="搜索药品名称、通用名或编码"
+              clearable
+              class="search-input"
+              @clear="loadData"
+              @keyup.enter="loadData"
           />
           <el-button class="search-btn" @click="loadData">
             <i class="fa-solid fa-search"></i>
@@ -34,37 +31,37 @@
           </el-button>
 
           <el-select
-            v-model="categoryIdFilter"
-            placeholder="药品分类"
-            clearable
-            filterable
-            size="large"
-            class="filter-select filter-select-wide"
-            style="width: 200px"
-            @change="loadData"
+              v-model="categoryIdFilter"
+              placeholder="药品分类"
+              clearable
+              filterable
+              size="large"
+              class="filter-select filter-select-wide"
+              style="width: 200px"
+              @change="loadData"
           >
             <el-option
-              v-for="c in categoryOptions"
-              :key="c.categoryId"
-              :label="c.name"
-              :value="c.categoryId"
+                v-for="c in categoryOptions"
+                :key="c.categoryId"
+                :label="c.name"
+                :value="c.categoryId"
             />
           </el-select>
 
           <el-select
-            v-model="statusFilter"
-            placeholder="状态"
-            clearable
-            size="large"
-            class="filter-select"
-            style="width: 120px"
-            @change="loadData"
+              v-model="statusFilter"
+              placeholder="状态"
+              clearable
+              size="large"
+              class="filter-select"
+              style="width: 120px"
+              @change="loadData"
           >
             <el-option :value="1" label="在用" />
             <el-option :value="0" label="停用" />
           </el-select>
 
-          <span v-if="!isStockWarningRoute" class="stock-warning-switch-wrap">
+          <span class="stock-warning-switch-wrap">
             <el-switch v-model="stockWarningSwitch" @change="onStockWarningChange" />
             <span class="stock-warning-label">仅看库存预警</span>
           </span>
@@ -77,10 +74,10 @@
 
       <div class="table-wrap" v-loading="loading" element-loading-text="加载中...">
         <el-table
-          :data="tableData"
-          class="data-table"
-          :header-cell-style="headerCellStyle"
-          :row-class-name="tableRowClassName"
+            :data="tableData"
+            class="data-table"
+            :header-cell-style="headerCellStyle"
+            :row-class-name="tableRowClassName"
         >
           <el-table-column prop="medicineCode" label="药品编码" width="118" align="center">
             <template #default="{ row }">
@@ -124,14 +121,14 @@
 
         <div class="pagination-wrap">
           <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :total="total"
-            :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next, jumper"
-            background
-            @size-change="loadData"
-            @current-change="loadData"
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :total="total"
+              :page-sizes="[10, 20, 50, 100]"
+              layout="total, sizes, prev, pager, next, jumper"
+              background
+              @size-change="loadData"
+              @current-change="loadData"
           />
         </div>
       </div>
@@ -139,14 +136,14 @@
 
     <!-- 新增药品 -->
     <el-dialog
-      v-model="createDialogVisible"
-      width="780px"
-      :append-to-body="true"
-      :modal-append-to-body="true"
-      class="medicine-dialog edit-dialog create-medicine-dialog"
-      :close-on-click-modal="false"
-      align-center
-      @close="resetCreateForm"
+        v-model="createDialogVisible"
+        width="780px"
+        :append-to-body="true"
+        :modal-append-to-body="true"
+        class="medicine-dialog edit-dialog create-medicine-dialog"
+        :close-on-click-modal="false"
+        align-center
+        @close="resetCreateForm"
     >
       <template #header>
         <div class="edit-dialog-header">
@@ -160,21 +157,21 @@
         </div>
       </template>
       <el-form
-        ref="createFormRef"
-        :model="createForm"
-        :rules="createRules"
-        label-position="top"
-        class="edit-form create-medicine-form"
+          ref="createFormRef"
+          :model="createForm"
+          :rules="createRules"
+          label-position="top"
+          class="edit-form create-medicine-form"
       >
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="药品编码" prop="medicineCode" required>
               <el-input
-                v-model="createForm.medicineCode"
-                placeholder="唯一编码，如 MED000999"
-                maxlength="50"
-                clearable
-                :disabled="isEditMode"
+                  v-model="createForm.medicineCode"
+                  placeholder="唯一编码，如 MED000999"
+                  maxlength="50"
+                  clearable
+                  :disabled="isEditMode"
               />
             </el-form-item>
           </el-col>
@@ -194,10 +191,10 @@
             <el-form-item label="药品分类" prop="categoryId" required>
               <el-select v-model="createForm.categoryId" placeholder="请选择" filterable style="width: 100%">
                 <el-option
-                  v-for="c in categoryOptions"
-                  :key="c.categoryId"
-                  :label="c.name"
-                  :value="c.categoryId"
+                    v-for="c in categoryOptions"
+                    :key="c.categoryId"
+                    :label="c.name"
+                    :value="c.categoryId"
                 />
               </el-select>
             </el-form-item>
@@ -271,14 +268,14 @@
 
     <!-- 药品详情 -->
     <el-dialog
-      v-model="detailDialogVisible"
-      width="640px"
-      :append-to-body="true"
-      :modal-append-to-body="true"
-      class="medicine-dialog edit-dialog"
-      :close-on-click-modal="false"
-      align-center
-      @close="resetDetail"
+        v-model="detailDialogVisible"
+        width="640px"
+        :append-to-body="true"
+        :modal-append-to-body="true"
+        class="medicine-dialog edit-dialog"
+        :close-on-click-modal="false"
+        align-center
+        @close="resetDetail"
     >
       <template #header>
         <div class="edit-dialog-header">
@@ -324,8 +321,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, computed, watch } from 'vue'
-import { useRoute, onBeforeRouteUpdate } from 'vue-router'
+import { ref, onMounted, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   getMedicinePage,
@@ -336,23 +332,6 @@ import {
   getMedicineDetail
 } from '@/api/admin'
 
-const route = useRoute()
-const isStockWarningRoute = computed(() => route.path === '/admin/medicine-stock-warning')
-const stockWarningSwitch = ref(false)
-const effectiveStockWarning = computed(() => isStockWarningRoute.value || stockWarningSwitch.value)
-
-const pageTitle = computed(() => (isStockWarningRoute.value ? '库存预警' : '药品列表'))
-const pageDesc = computed(() =>
-  isStockWarningRoute.value
-    ? '当前库存低于或等于最低库存的药品，请及时补货'
-    : '查询药品编码、分类、规格与库存信息'
-)
-const pageIconClass = computed(() =>
-  isStockWarningRoute.value
-    ? 'fa-solid fa-triangle-exclamation page-icon page-icon-warning'
-    : 'fa-solid fa-pills page-icon'
-)
-
 const loading = ref(false)
 const tableData = ref([])
 const currentPage = ref(1)
@@ -362,6 +341,7 @@ const keyword = ref('')
 const categoryIdFilter = ref(null)
 const statusFilter = ref(null)
 const categoryOptions = ref([])
+const stockWarningSwitch = ref(false)
 
 const createDialogVisible = ref(false)
 const isEditMode = ref(false)
@@ -428,14 +408,6 @@ const onStockWarningChange = () => {
   loadData()
 }
 
-watch(() => route.path, (newPath, oldPath) => {
-  const medicinePaths = ['/admin/medicine', '/admin/medicine-stock-warning']
-  if (medicinePaths.includes(newPath) && medicinePaths.includes(oldPath) && newPath !== oldPath) {
-    currentPage.value = 1
-    loadData()
-  }
-})
-
 const formatMoney = (v) => {
   if (v === null || v === undefined) return '-'
   const n = Number(v)
@@ -462,9 +434,9 @@ const loadData = async () => {
     status: statusFilter.value ?? undefined
   }
   try {
-    const res = effectiveStockWarning.value
-      ? await getMedicineStockWarning(params)
-      : await getMedicinePage(params)
+    const res = stockWarningSwitch.value
+        ? await getMedicineStockWarning(params)
+        : await getMedicinePage(params)
     tableData.value = res.list || []
     total.value = res.total || 0
   } catch {
@@ -595,6 +567,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 样式保持不变 */
 .medicine-list-page {
   padding: 24px 28px 32px;
   min-height: 100%;
@@ -620,11 +593,6 @@ onMounted(() => {
   background: linear-gradient(135deg, #e8a54b, #d48232);
   border-radius: 12px;
   box-shadow: 0 4px 14px rgba(212, 130, 50, 0.35);
-}
-
-.page-icon-warning {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.4);
 }
 
 .page-title {
@@ -872,7 +840,7 @@ onMounted(() => {
   font-weight: 500;
 }
 
-/* 新增 / 详情对话框（与角色管理一致） */
+/* 对话框样式 */
 .medicine-dialog.edit-dialog :deep(.el-dialog) {
   border-radius: 16px;
   overflow: hidden;
@@ -924,7 +892,6 @@ onMounted(() => {
   padding: 20px 24px 8px;
 }
 
-/* 新增药品：横置两列 + 小屏时正文区域可滚动，避免撑出屏幕 */
 .create-medicine-dialog :deep(.el-dialog__body) {
   max-height: min(520px, calc(100vh - 200px));
   overflow-y: auto;
