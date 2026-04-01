@@ -334,6 +334,8 @@
     <el-dialog
       v-model="userDetailDialogVisible"
       width="760px"
+      :append-to-body="true"
+      :modal-append-to-body="true"
       class="user-mgmt-dialog"
       :close-on-click-modal="false"
       align-center
