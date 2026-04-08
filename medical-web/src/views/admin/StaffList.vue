@@ -47,6 +47,7 @@
 
       <div class="table-wrap" v-loading="loading" element-loading-text="加载中...">
         <el-table
+          :key="route.fullPath"
           :data="tableData"
           class="data-table"
           :header-cell-style="headerCellStyle"

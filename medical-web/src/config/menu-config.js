@@ -118,11 +118,96 @@ export const patientMenuItems = [
   }
 ]
 
+// 挂号/收费端（与 /api/reception/** 权限一致）
+export const receptionMenuItems = [
+  { index: '0', title: '工作台', icon: 'fa-solid fa-house', url: '/reception/dashboard' },
+  {
+    index: '1',
+    title: '挂号业务',
+    icon: 'fa-solid fa-clipboard-list',
+    children: [
+      { index: '1-1', label: '预约挂号', icon: 'fa-solid fa-calendar-plus', url: '/reception/appointment' },
+      { index: '1-2', label: '患者建档', icon: 'fa-solid fa-user-plus', url: '/reception/patient-register' }
+    ]
+  },
+  {
+    index: '2',
+    title: '收费业务',
+    icon: 'fa-solid fa-cash-register',
+    children: [
+      { index: '2-1', label: '收费', icon: 'fa-solid fa-money-bill-wave', url: '/reception/payment' },
+      { index: '2-2', label: '退费', icon: 'fa-solid fa-rotate-left', url: '/reception/refund' }
+    ]
+  },
+  {
+    index: '3',
+    title: '用户中心',
+    icon: 'fa-solid fa-user-circle',
+    children: [{ index: '3-1', label: '修改密码', icon: 'fa-solid fa-key', url: '/user/password' }]
+  }
+]
+
+// 药房/护士端（与 /api/nurse/** 权限一致）
+export const nurseMenuItems = [
+  { index: '0', title: '工作台', icon: 'fa-solid fa-house', url: '/nurse/dashboard' },
+  {
+    index: '1',
+    title: '发药业务',
+    icon: 'fa-solid fa-pills',
+    children: [
+      { index: '1-1', label: '待发药', icon: 'fa-solid fa-list', url: '/nurse/prescription' },
+      { index: '1-2', label: '发药确认', icon: 'fa-solid fa-circle-check', url: '/nurse/dispense' }
+    ]
+  },
+  {
+    index: '2',
+    title: '库存',
+    icon: 'fa-solid fa-warehouse',
+    children: [{ index: '2-1', label: '药品盘点', icon: 'fa-solid fa-boxes-stacked', url: '/nurse/inventory' }]
+  },
+  {
+    index: '3',
+    title: '用户中心',
+    icon: 'fa-solid fa-user-circle',
+    children: [{ index: '3-1', label: '修改密码', icon: 'fa-solid fa-key', url: '/user/password' }]
+  }
+]
+
+/** 未识别角色时仅保留安全入口，避免误显管理端菜单 */
+export const minimalMenuItems = [
+  {
+    index: '0',
+    title: '用户中心',
+    icon: 'fa-solid fa-user-circle',
+    children: [{ index: '0-1', label: '修改密码', icon: 'fa-solid fa-key', url: '/user/password' }]
+  }
+]
+
+/**
+ * 解析登录后的默认首页（与 getMenuByRole 角色优先级一致）
+ */
+export function resolveDefaultHomePath() {
+  let roles = []
+  try {
+    const u = JSON.parse(sessionStorage.getItem('userInfo') || '{}')
+    roles = u.roles || []
+  } catch {
+    roles = []
+  }
+  if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN')) return '/admin/dashboard'
+  if (roles.includes('DOCTOR')) return '/doctor/dashboard'
+  if (roles.includes('PATIENT')) return '/patient/dashboard'
+  if (roles.includes('RECEPTIONIST')) return '/reception/dashboard'
+  if (roles.includes('NURSE')) return '/nurse/dashboard'
+  return '/admin/dashboard'
+}
+
 export function getMenuByRole(roles) {
-  if (!roles || !roles.length) return adminMenuItems
-  const role = roles[0]
-  if (role === 'SUPER_ADMIN' || role === 'ADMIN') return adminMenuItems
-  if (role === 'DOCTOR') return doctorMenuItems
-  if (role === 'PATIENT') return patientMenuItems
-  return adminMenuItems
+  if (!roles || !roles.length) return minimalMenuItems
+  if (roles.includes('SUPER_ADMIN') || roles.includes('ADMIN')) return adminMenuItems
+  if (roles.includes('DOCTOR')) return doctorMenuItems
+  if (roles.includes('PATIENT')) return patientMenuItems
+  if (roles.includes('RECEPTIONIST')) return receptionMenuItems
+  if (roles.includes('NURSE')) return nurseMenuItems
+  return minimalMenuItems
 }

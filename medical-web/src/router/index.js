@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Placeholder from '@/views/Placeholder.vue'
+import { resolveDefaultHomePath } from '@/config/menu-config'
 
 const routes = [
   {
@@ -11,7 +12,7 @@ const routes = [
   {
     path: '/',
     component: () => import('@/layout/AdminLayout.vue'),
-    redirect: '/admin/dashboard',
+    redirect: () => ({ path: resolveDefaultHomePath() }),
     children: [
       {
         path: 'admin/dashboard',
@@ -60,7 +61,16 @@ const routes = [
       { path: 'patient/appointment', component: Placeholder, meta: { title: '我要预约' } },
       { path: 'patient/my-appointment', component: Placeholder, meta: { title: '我的预约' } },
       { path: 'patient/medical-record', component: Placeholder, meta: { title: '我的病历' } },
-      { path: 'patient/prescription', component: Placeholder, meta: { title: '我的处方' } }
+      { path: 'patient/prescription', component: Placeholder, meta: { title: '我的处方' } },
+      { path: 'reception/dashboard', component: Placeholder, meta: { title: '挂号工作台' } },
+      { path: 'reception/appointment', component: Placeholder, meta: { title: '预约挂号' } },
+      { path: 'reception/patient-register', component: Placeholder, meta: { title: '患者建档' } },
+      { path: 'reception/payment', component: Placeholder, meta: { title: '收费' } },
+      { path: 'reception/refund', component: Placeholder, meta: { title: '退费' } },
+      { path: 'nurse/dashboard', component: Placeholder, meta: { title: '护士工作台' } },
+      { path: 'nurse/prescription', component: Placeholder, meta: { title: '待发药' } },
+      { path: 'nurse/dispense', component: Placeholder, meta: { title: '发药确认' } },
+      { path: 'nurse/inventory', component: Placeholder, meta: { title: '药品盘点' } }
     ]
   }
 ]

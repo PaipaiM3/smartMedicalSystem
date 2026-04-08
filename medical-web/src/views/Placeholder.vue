@@ -1,10 +1,33 @@
 <template>
   <div class="placeholder-page">
     <el-empty description="功能开发中，敬请期待">
-      <el-button class="back-btn" @click="$router.push('/admin/dashboard')">返回工作台</el-button>
+      <el-button class="back-btn" @click="goHome">返回工作台</el-button>
     </el-empty>
   </div>
 </template>
+
+<script setup>
+import { useRoute, useRouter } from 'vue-router'
+import { resolveDefaultHomePath } from '@/config/menu-config'
+
+const route = useRoute()
+const router = useRouter()
+
+function goHome() {
+  const p = route.path
+  if (p.startsWith('/reception')) {
+    router.push('/reception/dashboard')
+  } else if (p.startsWith('/nurse')) {
+    router.push('/nurse/dashboard')
+  } else if (p.startsWith('/doctor')) {
+    router.push('/doctor/dashboard')
+  } else if (p.startsWith('/patient')) {
+    router.push('/patient/dashboard')
+  } else {
+    router.push(resolveDefaultHomePath())
+  }
+}
+</script>
 
 <style scoped>
 .placeholder-page {
