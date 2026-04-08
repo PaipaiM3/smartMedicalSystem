@@ -182,6 +182,7 @@ import { User, UserFilled, Lock, Iphone } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { login, register } from '@/api/auth'
+import { resolveDefaultHomePath } from '@/config/menu-config'
 
 const router = useRouter()
 const route = useRoute()
@@ -250,6 +251,21 @@ const registerRules = {
   ]
 }
 
+/** 登录成功后的跳转：优先 query.redirect（站内路径），否则按角色进默认首页 */
+function pickRedirectAfterLogin() {
+  const r = route.query.redirect
+  const s =
+    typeof r === 'string'
+      ? r.trim()
+      : Array.isArray(r) && typeof r[0] === 'string'
+        ? r[0].trim()
+        : ''
+  if (s && s.startsWith('/') && !s.startsWith('//')) {
+    return s
+  }
+  return resolveDefaultHomePath()
+}
+
 const handleLogin = async () => {
   try {
     await formRef.value?.validate()
@@ -261,7 +277,7 @@ const handleLogin = async () => {
     const data = await login(form)
     sessionStorage.setItem('userInfo', JSON.stringify(data))
     ElMessage.success('登录成功')
-    router.replace(route.query.redirect || '/')
+    router.replace(pickRedirectAfterLogin())
   } catch (e) {
     console.error(e)
   } finally {
