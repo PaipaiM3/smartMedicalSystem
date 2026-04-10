@@ -1,6 +1,7 @@
 package com.medical.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.medical.domain.entity.Doctor;
 import com.medical.domain.entity.Schedule;
 import com.medical.domain.vo.ScheduleSlotVo;
@@ -77,31 +78,31 @@ public class ScheduleService {
      * 锁定号源（增加已预约数）
      */
     public boolean lockSlot(Long scheduleId) {
-        Schedule schedule = scheduleMapper.selectById(scheduleId);
-        if (schedule == null || schedule.getStatus() != 1) {
-            return false;
-        }
-        if (schedule.getBookedSlots() >= schedule.getTotalSlots()) {
-            return false;
-        }
-        schedule.setBookedSlots(schedule.getBookedSlots() + 1);
-        schedule.setUpdatedTime(LocalDateTime.now());
-        return scheduleMapper.updateById(schedule) > 0;
+        // 原子条件更新：仅当 status=1 且 booked_slots < total_slots 时 +1，避免并发超卖
+        int updated = scheduleMapper.update(
+                null,
+                new LambdaUpdateWrapper<Schedule>()
+                        .eq(Schedule::getScheduleId, scheduleId)
+                        .eq(Schedule::getStatus, 1)
+                        .apply("booked_slots < total_slots")
+                        .setSql("booked_slots = booked_slots + 1")
+                        .set(Schedule::getUpdatedTime, LocalDateTime.now())
+        );
+        return updated > 0;
     }
 
     /**
      * 释放号源（取消预约时使用）
      */
     public boolean releaseSlot(Long scheduleId) {
-        Schedule schedule = scheduleMapper.selectById(scheduleId);
-        if (schedule == null) {
-            return false;
-        }
-        if (schedule.getBookedSlots() > 0) {
-            schedule.setBookedSlots(schedule.getBookedSlots() - 1);
-            schedule.setUpdatedTime(LocalDateTime.now());
-            return scheduleMapper.updateById(schedule) > 0;
-        }
-        return false;
+        int updated = scheduleMapper.update(
+                null,
+                new LambdaUpdateWrapper<Schedule>()
+                        .eq(Schedule::getScheduleId, scheduleId)
+                        .apply("booked_slots > 0")
+                        .setSql("booked_slots = booked_slots - 1")
+                        .set(Schedule::getUpdatedTime, LocalDateTime.now())
+        );
+        return updated > 0;
     }
 }

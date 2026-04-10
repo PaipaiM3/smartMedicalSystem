@@ -298,8 +298,7 @@ const loadDeptList = async () => {
   try {
     const res = await getDeptOptions()
     let list = res.data || res || []
-    // 只显示 deptId < 20 的科室
-    list = list.filter(d => d.deptId < 20)
+    // /admin/dept/options 已在后端按启用状态过滤，这里不再二次依赖 status 字段
     if (deptKeyword.value) {
       const kw = deptKeyword.value.toLowerCase()
       list = list.filter(d =>
@@ -332,7 +331,8 @@ const loadDoctorList = async () => {
       current: 1,
       size: 100,
       deptId: selectedDept.value.deptId,
-      status: 1
+      status: 1,
+      roleCode: 'DOCTOR'
     })
     doctorList.value = res.data?.list || res.list || []
   } catch (error) {
@@ -450,7 +450,7 @@ const submitAppointment = async () => {
       scheduleId: selectedScheduleId.value,
     })
 
-    appointmentNo.value = res.data || 'APT' + Date.now()
+    appointmentNo.value = res || 'APT' + Date.now()
     successVisible.value = true
   } catch (error) {
     console.error('预约失败:', error)

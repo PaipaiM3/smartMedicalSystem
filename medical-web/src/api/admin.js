@@ -238,6 +238,70 @@ export function deleteDept(id) {
   })
 }
 
+// ==================== 管理端排班 ====================
+
+/** 排班分页/列表 */
+export function getScheduleList(params) {
+  return request({
+    url: '/admin/schedule/list',
+    method: 'get',
+    params
+  })
+}
+
+/** 新增排班 */
+export function createSchedule(data) {
+  return request({
+    url: '/admin/schedule',
+    method: 'post',
+    data
+  })
+}
+
+/** 更新排班 */
+export function updateSchedule(id, data) {
+  return request({
+    url: `/admin/schedule/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+/** 删除排班 */
+export function deleteSchedule(id) {
+  return request({
+    url: `/admin/schedule/${id}`,
+    method: 'delete'
+  })
+}
+
+// ==================== 管理端预约 ====================
+
+/** 预约分页 */
+export function getAdminAppointmentPage(params) {
+  return request({
+    url: '/admin/appointment/page',
+    method: 'get',
+    params
+  })
+}
+
+/** 预约详情 */
+export function getAdminAppointmentDetail(id) {
+  return request({
+    url: `/admin/appointment/${id}`,
+    method: 'get'
+  })
+}
+
+/** 管理端取消预约 */
+export function cancelAdminAppointment(id) {
+  return request({
+    url: `/admin/appointment/${id}/cancel`,
+    method: 'put'
+  })
+}
+
 // ==================== 排班相关 ====================
 
 /**
